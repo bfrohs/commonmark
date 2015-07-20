@@ -14,12 +14,16 @@
 
 namespace League\CommonMark\Tests\Functional;
 
-use League\CommonMark\CommonMarkConverter;
+use League\CommonMark\Converter;
+use League\CommonMark\DocParser;
+use League\CommonMark\Environment;
+use League\CommonMark\Extension\SmartPunctExtension;
+use League\CommonMark\HtmlRenderer;
 
 /**
  * Tests the parser against the CommonMark spec
  */
-class SpecTest extends \PHPUnit_Framework_TestCase
+class SmartPunctTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * @var CommonMarkConverter
@@ -28,7 +32,12 @@ class SpecTest extends \PHPUnit_Framework_TestCase
 
     protected function setUp()
     {
-        $this->converter = new CommonMarkConverter();
+        $environment = Environment::createCommonMarkEnvironment();
+        $environment->addExtension(new SmartPunctExtension());
+        $this->converter = new Converter(
+            new DocParser($environment),
+            new HtmlRenderer($environment)
+        );
     }
 
     /**
@@ -41,16 +50,12 @@ class SpecTest extends \PHPUnit_Framework_TestCase
      */
     public function testExample($markdown, $html, $section, $number)
     {
-        // Replace visible tabs in spec
-        $markdown = str_replace('→', "\t", $markdown);
-        $html = str_replace('→', "\t", $html);
-
         $actualResult = $this->converter->convertToHtml($markdown);
 
         $failureMessage = sprintf('Unexpected result ("%s" section, example #%d)', $section, $number);
-        $failureMessage .= "\n=== markdown ===============\n" . $this->showSpaces($markdown);
-        $failureMessage .= "\n=== expected ===============\n" . $this->showSpaces($html);
-        $failureMessage .= "\n=== got ====================\n" . $this->showSpaces($actualResult);
+        $failureMessage .= "\n=== markdown ===============\n" . $markdown;
+        $failureMessage .= "\n=== expected ===============\n" . $html;
+        $failureMessage .= "\n=== got ====================\n" . $actualResult;
 
         $this->assertEquals($html, $actualResult, $failureMessage);
     }
@@ -60,7 +65,7 @@ class SpecTest extends \PHPUnit_Framework_TestCase
      */
     public function dataProvider()
     {
-        $filename = __DIR__ . '/../../vendor/jgm/CommonMark/spec.txt';
+        $filename = __DIR__ . '/../../vendor/jgm/SmartPunct/smart_punct.txt';
         if (($data = file_get_contents($filename)) === false) {
             $this->fail(sprintf('Failed to load spec from %s', $filename));
         }
@@ -94,18 +99,5 @@ class SpecTest extends \PHPUnit_Framework_TestCase
         }
 
         return $examples;
-    }
-
-    /**
-     * @param string $str
-     *
-     * @return string
-     */
-    protected function showSpaces($str)
-    {
-        $str = str_replace("\t", '→', $str);
-        $str = str_replace(' ', '␣', $str);
-
-        return $str;
     }
 }

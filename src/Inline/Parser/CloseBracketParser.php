@@ -17,12 +17,13 @@ namespace League\CommonMark\Inline\Parser;
 use League\CommonMark\ContextInterface;
 use League\CommonMark\Cursor;
 use League\CommonMark\Delimiter\Delimiter;
+use League\CommonMark\Delimiter\DelimiterStack;
 use League\CommonMark\Environment;
 use League\CommonMark\EnvironmentAwareInterface;
 use League\CommonMark\Inline\Element\AbstractWebResource;
-use League\CommonMark\InlineParserContext;
 use League\CommonMark\Inline\Element\Image;
 use League\CommonMark\Inline\Element\Link;
+use League\CommonMark\InlineParserContext;
 use League\CommonMark\Reference\Reference;
 use League\CommonMark\Reference\ReferenceMap;
 use League\CommonMark\Util\ArrayCollection;
@@ -44,7 +45,7 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
     }
 
     /**
-     * @param ContextInterface $context
+     * @param ContextInterface    $context
      * @param InlineParserContext $inlineContext
      *
      * @return bool
@@ -88,8 +89,13 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
             return false;
         }
 
+        $delimiterStack = $inlineContext->getDelimiterStack();
+        $stackBottom = $opener->getPrevious();
         foreach ($this->environment->getInlineProcessors() as $inlineProcessor) {
-            $inlineProcessor->processInlines($labelInlines, $inlineContext->getDelimiterStack(), $opener->getPrevious());
+            $inlineProcessor->processInlines($labelInlines, $delimiterStack, $stackBottom);
+        }
+        if ($delimiterStack instanceof DelimiterStack) {
+            $delimiterStack->removeAll($stackBottom);
         }
 
         // Remove the part of inlines that become link_text
@@ -116,8 +122,8 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
 
     /**
      * @param ArrayCollection $collection
-     * @param int $start
-     * @param int $end
+     * @param int             $start
+     * @param int             $end
      */
     protected function nullify(ArrayCollection $collection, $start, $end)
     {
@@ -127,10 +133,10 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
     }
 
     /**
-     * @param Cursor $cursor
+     * @param Cursor       $cursor
      * @param ReferenceMap $referenceMap
-     * @param Delimiter $opener
-     * @param int $startPos
+     * @param Delimiter    $opener
+     * @param int          $startPos
      *
      * @return array|bool
      */
@@ -138,7 +144,7 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
     {
         // Check to see if we have a link/image
         // Inline link?
-        if ($cursor->getCharacter() == '(') {
+        if ($cursor->getCharacter() === '(') {
             if ($result = $this->tryParseInlineLinkAndTitle($cursor)) {
                 return $result;
             }
@@ -180,10 +186,10 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
     }
 
     /**
-     * @param Cursor $cursor
+     * @param Cursor       $cursor
      * @param ReferenceMap $referenceMap
-     * @param Delimiter $opener
-     * @param int $startPos
+     * @param Delimiter    $opener
+     * @param int          $startPos
      *
      * @return Reference|null
      */
@@ -209,10 +215,10 @@ class CloseBracketParser extends AbstractInlineParser implements EnvironmentAwar
     }
 
     /**
-     * @param string $url
+     * @param string          $url
      * @param ArrayCollection $labelInlines
-     * @param string $title
-     * @param bool $isImage
+     * @param string          $title
+     * @param bool            $isImage
      *
      * @return AbstractWebResource
      */

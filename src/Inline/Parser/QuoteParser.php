@@ -17,38 +17,20 @@ namespace League\CommonMark\Inline\Parser;
 use League\CommonMark\ContextInterface;
 use League\CommonMark\Delimiter\Delimiter;
 use League\CommonMark\Inline\Element\Text;
-use League\CommonMark\Util\Configuration;
 use League\CommonMark\InlineParserContext;
 use League\CommonMark\Util\RegexHelper;
 
-class EmphasisParser extends AbstractInlineParser
+class QuoteParser extends AbstractInlineParser
 {
-    protected $config;
-
-    public function __construct(array $newConfig = array())
-    {
-        $this->config = new Configuration([
-            'use_asterisk' => true,
-            'use_underscore' => true,
-            'enable_emphasis' => true,
-            'enable_strong' => true,
-        ]);
-        $this->config->mergeConfig($newConfig);
-    }
+    protected $double = ['"', '“', '”'];
+    protected $single = ["'", '‘', '’'];
 
     /**
      * @return string[]
      */
     public function getCharacters()
     {
-        $chars = [];
-        if ($this->config->getConfig("use_asterisk", true)) {
-            $chars[] = '*';
-        }
-        if ($this->config->getConfig("use_underscore", true)) {
-            $chars[] = '_';
-        }
-        return $chars;
+        return array_merge($this->double, $this->single);
     }
 
     /**
@@ -60,11 +42,13 @@ class EmphasisParser extends AbstractInlineParser
     public function parse(ContextInterface $context, InlineParserContext $inlineContext)
     {
         $character = $inlineContext->getCursor()->getCharacter();
-        if (!in_array($character, $this->getCharacters())) {
+        if (in_array($character, $this->double)) {
+            $character = '“';
+        } elseif (in_array($character, $this->single)) {
+            $character = '’';
+        } else {
             return false;
         }
-
-        $numDelims = 0;
 
         $cursor = $inlineContext->getCursor();
         $charBefore = $cursor->peek(-1);
@@ -72,16 +56,7 @@ class EmphasisParser extends AbstractInlineParser
             $charBefore = "\n";
         }
 
-        while ($cursor->peek($numDelims) === $character) {
-            ++$numDelims;
-        }
-
-        // Skip single delims if emphasis is disabled
-        if ($numDelims === 1 && !$this->config->getConfig("enable_emphasis")) {
-            return false;
-        }
-
-        $cursor->advanceBy($numDelims);
+        $cursor->advance();
 
         $charAfter = $cursor->getCharacter();
         if ($charAfter === null) {
@@ -93,33 +68,25 @@ class EmphasisParser extends AbstractInlineParser
         $beforeIsWhitespace = preg_match('/\pZ|\s/u', $charBefore);
         $beforeIsPunctuation = preg_match(RegexHelper::REGEX_PUNCTUATION, $charBefore);
 
-        $leftFlanking = $numDelims > 0 && !$afterIsWhitespace &&
+        $leftFlanking = !$afterIsWhitespace &&
             !($afterIsPunctuation &&
             !$beforeIsWhitespace &&
             !$beforeIsPunctuation);
 
-        $rightFlanking = $numDelims > 0 && !$beforeIsWhitespace &&
+        $rightFlanking = !$beforeIsWhitespace &&
             !($beforeIsPunctuation &&
             !$afterIsWhitespace &&
             !$afterIsPunctuation);
 
-        if ($character === '_') {
-            $canOpen = $leftFlanking && (!$rightFlanking || $beforeIsPunctuation);
-            $canClose = $rightFlanking && (!$leftFlanking || $afterIsPunctuation);
-        } else {
-            $canOpen = $leftFlanking;
-            $canClose = $rightFlanking;
-        }
+        $canOpen = $leftFlanking;
+        $canClose = $rightFlanking;
 
         $inlineContext->getInlines()->add(
-            new Text($cursor->getPreviousText(), [
-                'delim' => true,
-                'emphasis_config' => $this->config,
-            ])
+            new Text($character, ['delim' => true])
         );
 
         // Add entry to stack to this opener
-        $delimiter = new Delimiter($character, $numDelims, $inlineContext->getInlines()->count() - 1, $canOpen, $canClose);
+        $delimiter = new Delimiter($character, 1, $inlineContext->getInlines()->count() - 1, $canOpen, $canClose);
         $inlineContext->getDelimiterStack()->push($delimiter);
 
         return true;

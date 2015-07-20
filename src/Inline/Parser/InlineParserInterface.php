@@ -17,8 +17,11 @@ use League\CommonMark\InlineParserContext;
 interface InlineParserInterface
 {
     /**
+     * Get the name of the parser
+     *
+     * Note that this must be unique with its block type.
+     *
      * @return string
-     *   Name of the parser (must be unique within its block type)
      */
     public function getName();
 
@@ -28,7 +31,7 @@ interface InlineParserInterface
     public function getCharacters();
 
     /**
-     * @param ContextInterface $context
+     * @param ContextInterface    $context
      * @param InlineParserContext $inlineContext
      *
      * @return bool
