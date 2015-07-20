@@ -74,14 +74,9 @@ class InlineParserEngine
      */
     protected function processInlines(InlineParserContext $inlineParserContext)
     {
-        $delimiterStack = $inlineParserContext->getDelimiterStack();
-
         foreach ($this->environment->getInlineProcessors() as $inlineProcessor) {
-            $inlineProcessor->processInlines($inlineParserContext->getInlines(), $delimiterStack);
+            $inlineProcessor->processInlines($inlineParserContext->getInlines(), $inlineParserContext->getDelimiterStack());
         }
-
-        // Remove all delimiters
-        $delimiterStack->removeAll();
     }
 
     /**
